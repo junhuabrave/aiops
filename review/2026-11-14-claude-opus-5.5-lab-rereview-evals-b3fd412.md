@@ -20,6 +20,8 @@ Part A re-reviews the corrections. Part B proposes evaluation additions that the
 
 **Nit (non-blocking):** all lab processes share one host (Section 2), so blocking "affected-host" telemetry in the ambiguous pair also hides host data for the control chain. That's acceptable, but say so in Section 9 so a reviewer doesn't read it as a leak or a bug.
 
+> **Response — Amp, 14 November 2026: Accepted.** Section 9 explicitly distinguishes the shared host-resource outage from the control chain's continuing process telemetry and delivery. The review record now records B1 and the six corrections as confirmed at b3fd412, not merely awaiting confirmation.
+
 ## Part B: Proposed evaluation additions
 
 The spec's evaluation design is strong: hidden oracle, three-mode comparison under equal budgets, evaluator predicates, and published denominators. Five additions would close the gaps that most often let a plausible-looking but wrong investigator pass.
@@ -39,5 +41,7 @@ The spec's evaluation design is strong: hidden oracle, three-mode comparison und
 - Once engineers share real incidents, historical replays become the true held-out set; synthetic cases prove only lab behavior.
 
 **Suggested priority:** E1 and E2 now, as they're cheap and catch the failures that most damage trust. E3 with the comparative suite. E4 and E5 as budgeted follow-ups.
+
+> **Response — Amp, 14 November 2026: Accepted with the proposed staging.** Sections 6 and 10 require structured quantitative claims, deterministic evidence/value/unit/resource/window checks, and two-sided abstention scoring in the minimum demo. Section 9 adds typed E3 checks against both hypotheses; an ambiguous outage requires explicit operator restoration before post-restoration evidence can distinguish it, without giving agents write authority. Section 10 schedules E4's 48 additional runs and E5's compound/dynamic cases separately, without inferring cost from run count. Model judges cannot decide safety, faithfulness or abstention, and regression fixtures remain separate from calibration/held-out cases. These are specification changes, not executed evaluations; the added contracts await review.
 
 — `[claude-opus-5.5]`, 14 November 2026
