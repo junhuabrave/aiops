@@ -1,6 +1,6 @@
 # Architecture review record
 
-This records the initial two sequential AI-assisted document reviews and the separate stack-extension review in PR #1. They are design critiques, not independent human approval, penetration tests, implementation verification, or evidence of production readiness. A human architect's peer review remains outstanding.
+This records the initial two sequential AI-assisted document reviews, Claude's all-document review in PR #1, and its corrective-revision re-review in PR #2. They are design critiques, not independent human approval, penetration tests, implementation verification, or evidence of production readiness. A human architect's peer review remains outstanding.
 
 ## Round 1: architecture and safety consistency
 
@@ -31,20 +31,22 @@ Scope: first-round dispositions, client/coordinator/worker boundaries, authoriza
 
 These final corrections were checked by the author against both findings; they were not submitted for a third independent review. The focused client/pool diagram was added after the second reviewer read the proposal and was visually checked by the author. No production integration or implementation was verified by either review.
 
-## Stack extension: Claude review and agreed dispositions
+## Claude review: all documents, including the stack extension
 
 **Date:** 14 November 2026. **Reviewer:** Claude Opus 5.5 (`claude-opus-5-5`). **Input:** [stack reference commit ca47aaa](https://github.com/junhuabrave/aiops/commit/ca47aaa99b3f2b8eba307592e33dbf1a2e4dcd59). Scope includes both architecture documents, README, this record and both diagrams. The [signed review](../review/2026-11-14-claude-opus-5.5-design-review.md) was merged by the owner in [PR #1](https://github.com/junhuabrave/aiops/pull/1).
 
-The [author response](https://github.com/junhuabrave/aiops/pull/1#issuecomment-6881469403) and [reviewer reply](https://github.com/junhuabrave/aiops/pull/1#issuecomment-6881504333) agree on all four dispositions. Agreement does not confirm the corrective revision: Claude requested its exact commit for re-review. This section records that state, not a completed second review of the extension.
+The [author response](https://github.com/junhuabrave/aiops/pull/1#issuecomment-6881469403) and [reviewer reply](https://github.com/junhuabrave/aiops/pull/1#issuecomment-6881504333) agreed on all four dispositions. Claude subsequently [confirmed corrective commit 94107a1](https://github.com/junhuabrave/aiops/pull/2#issuecomment-6881709741) with no blocking findings in [PR #2](https://github.com/junhuabrave/aiops/pull/2); the [signed re-review](../review/2026-11-14-claude-opus-5.5-rereview-94107a1.md) records the exact scope and evidence.
 
 | Finding | Agreed disposition and corrective status |
 | --- | --- |
-| POC/production orchestration ownership | Accepted. Both docs now specify PostgreSQL task-service lifecycle for the read-only POC, and Temporal lifecycle after action-phase adoption; LangGraph owns bounded reasoning/checkpoints. Corrective revision awaits reviewer confirmation. |
-| Stack/model choices need their own review | Accepted. This separate review is recorded; sourced IDs are distinguished from account/region eligibility and empirical qualification. Corrective-revision review remains open; deployment qualification is future work. |
+| POC/production orchestration ownership | Accepted and confirmed at 94107a1. Both docs specify PostgreSQL task-service lifecycle for the read-only POC, and Temporal lifecycle after action-phase adoption; LangGraph owns bounded reasoning/checkpoints. |
+| Stack/model choices need their own review | Accepted and confirmed at 94107a1. This separate review is recorded; sourced IDs are distinguished from account/region eligibility and empirical qualification. Deployment qualification is future work. |
 | First buildable lab specification | Deferred until the reference architecture is settled. AI implementation author owns the specification follow-up with plant-engineer review; Section 9 of the stack design records scope. No lab implementation is authorized here. |
 | Python-only POC alternative | Rejected for continuous ingestion; reviewer accepted the owner's constraint. Go/native ingestion remains, compatible Go API/read tools may share a service, and the privileged executor stays separate. Rationale is now explicit in the stack design. |
 
-**Outstanding:** reviewer confirmation against the corrective PR head, human review of the final original round-2 fixes/client diagram and stack extension, and owner approval before merge. No production behavior, performance or model suitability was tested by this review.
+**Post-review author update — Amp, 14 November 2026:** addressed both non-blocking nits by broadening this section's heading and explicitly including Go/native telemetry ingestion in the minimal lab list. Updated current review-status text; the original signed reviews and dated author responses remain historical records. These wording/status edits follow the reviewed commit and have not received another independent review; they change no architecture contracts.
+
+**Outstanding:** owner approval before merge and human review of the final original round-2 fixes/client diagram and stack extension. No production behavior, performance or model suitability was tested by this review.
 
 ## Human architect review
 

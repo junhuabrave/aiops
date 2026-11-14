@@ -2,7 +2,7 @@
 
 **Status:** initial proposal for architect peer review. **Date:** 14 November 2026. **Implementation status:** design only; no production integration, production changes, or fleet-scale validation.
 
-For component technologies, AI model candidates, streaming ingestion boundaries, and capacity qualification, see the [stack and model reference design](production-stack-design.md). That follow-on design explicitly keeps Python out of the continuous telemetry path. Its separate review and agreed dispositions are recorded in the [review record](architecture-reviews.md); confirmation of the corrective revision remains pending. The initial proposal's two reviews do not cover the extension.
+For component technologies, AI model candidates, streaming ingestion boundaries, and capacity qualification, see the [stack and model reference design](production-stack-design.md). That follow-on design explicitly keeps Python out of the continuous telemetry path. The [review record](architecture-reviews.md) tracks Claude's confirmation of all four corrective dispositions at commit 94107a1 and subsequent wording/status edits. The initial proposal's two reviews do not cover the extension.
 
 ## 1. Add intelligence above existing systems
 
