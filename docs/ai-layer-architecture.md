@@ -2,6 +2,8 @@
 
 **Status:** initial proposal for architect peer review. **Date:** 14 November 2026. **Implementation status:** design only; no production integration, production changes, or fleet-scale validation.
 
+For component technologies, AI model candidates, streaming ingestion boundaries, and capacity qualification, see the [stack and model reference design](production-stack-design.md). That follow-on design explicitly keeps Python out of the continuous telemetry path and has not received the two reviews recorded for this initial proposal.
+
 ## 1. Add intelligence above existing systems
 
 Build an **AI layer over the existing messaging plant, Prometheus/Grafana, and operational tooling**. The layer gathers evidence, delegates investigations, develops reusable skills, proposes changes, executes permitted runbooks through a separate enforcement boundary, and reports progress. Existing delivery, monitoring, paging, and time-critical protection continue without the AI layer.
