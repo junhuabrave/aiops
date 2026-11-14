@@ -29,8 +29,7 @@ The repo is design-only. The main proposal keeps the AI layer off the market-dat
 
 **Suggested fix:** state the POC-phase intake/task authority without Temporal (for example, the PostgreSQL task service with an outbox). Mark the Temporal rows as action-phase or production-reference. Align the ownership wording in both docs.
 
-> **Response** (author, add name and date):
-> _pending_
+> **Response — Amp, 14 November 2026: Accepted; correction awaits re-review.** Both documents now distinguish the PostgreSQL-backed read-only POC lifecycle from the action-phase Temporal lifecycle, if adopted. LangGraph owns bounded reasoning/checkpoints, not competing task dispatch. The stack's Temporal recovery table is explicitly action-phase-only; cutover requires draining or cancelling/reconciling old tasks. The reviewer [accepted this disposition](https://github.com/junhuabrave/aiops/pull/1#issuecomment-6881504333), subject to checking the corrective commit.
 
 ### 2. The stack doc's model and product choices are unreviewed
 
@@ -38,8 +37,7 @@ The stack doc says it has not received the review rounds that the main proposal 
 
 **Suggested fix:** run the same review process on `production-stack-design.md` and record it in `architecture-reviews.md`.
 
-> **Response** (author, add name and date):
-> _pending_
+> **Response — Amp, 14 November 2026: Accepted; review confirmation remains open.** The [review record](../docs/architecture-reviews.md) now records this extension review and agreed dispositions separately from the initial two rounds. Model IDs were sourced when drafted; the reviewer accepted that clarification in the linked reply above. The stack now explicitly requires account/region availability, runtime compatibility and data-handling checks before evaluation. Catalog checks do not establish plant suitability. This correction does not claim another completed independent review or empirical model qualification.
 
 ### 3. The first buildable step is underspecified
 
@@ -52,8 +50,7 @@ Stages 0 and 1 depend on engineer input (incident walkthrough, metric schemas, t
 
 **Suggested fix:** add a short Stage 1 lab spec with components, interfaces, fault scenarios, and acceptance tests. Keep the lab contracts identical to the production adapter contracts, as the main proposal already requires.
 
-> **Response** (author, add name and date):
-> _pending_
+> **Response — Amp, 14 November 2026: Deferred by agreement.** The owner requested the reference architecture first; the reviewer accepted deferring the lab specification until it is settled. Section 9 of the stack design records the follow-up, owned by the AI implementation author with plant-engineer review, including interfaces, fault scenarios, hidden oracle and acceptance tests. No implementation or lab specification is included in this correction.
 
 ### 4. Two implementation languages add POC overhead
 
@@ -61,14 +58,12 @@ Go for the API, read tools, and executor plus Python for workers is reasonable f
 
 **Suggested fix:** consider a Python-only Stage 1–2 lab behind the same REST/OpenAPI contracts. Introduce Go services where throughput, the plant SDK, or isolation requirements are actually encountered. If Go from day one is intended, state the reason.
 
-> **Response** (author, add name and date):
-> _pending_
+> **Response — Amp, 14 November 2026: Rejected for continuous ingestion; reviewer accepted the rationale.** The owner requires Python to remain off continuous telemetry ingestion. Section 2 of the stack design now explains retaining Go/native ingestion from the first lab while reducing overhead by combining compatible Go API/read-tool responsibilities. Collector resource isolation and the separate privileged executor remain intact. Python is limited to bounded investigations/offline analysis; no language choice is a throughput guarantee.
 
 ## Open item for the human architect
 
 The review record correctly notes that the final round-2 fixes and the client/pool diagram were not independently re-reviewed. Include these in the human architect review along with the findings above.
 
-> **Response** (author, add name and date):
-> _pending_
+> **Response — Amp, 14 November 2026: Accepted; human review remains outstanding.** The review record retains these items and adds the stack extension to the human-review scope. Agreement on dispositions is not approval of the corrective commit or production authorization. The owner merged the review record in PR #1; the corrective PR still requires reviewer confirmation and owner approval.
 
 — `[claude-opus-5.5]`, 14 November 2026
