@@ -1,8 +1,8 @@
 # Production stack and AI model design
 
-**Recommendation:** keep the real-time messaging path unchanged; build a separately provisioned operations control plane using existing Prometheus/Grafana, Go plant adapters, Python/LangGraph investigators, and Temporal-managed task/action workflows. Use a qualified frontier model for investigation, with cheaper models introduced only where evaluations justify them.
+**Recommendation:** keep the real-time messaging path unchanged; build a separately provisioned operations control plane using existing Prometheus/Grafana, Go plant adapters and Python/LangGraph investigators. Start with a PostgreSQL-backed task service for the read-only POC; adopt Temporal-managed task/action workflows in the action phase if incumbent automation does not meet the contracts. Use a qualified frontier model for investigation, with cheaper models introduced only where evaluations justify them.
 
-**Status:** component-level design proposal, 14 November 2026. Extends the [architecture proposal](ai-layer-architecture.md). This extension has not received the earlier document's two reviewer rounds. Nothing here is deployed, load-tested against the plant, or authorization for production changes. Fleet size is known; message rate, payload size, telemetry volume, site topology, and latency objectives are not.
+**Status:** component-level design proposal, 14 November 2026. Extends the [architecture proposal](ai-layer-architecture.md). This extension received a separate Claude review; its agreed dispositions and pending corrective-revision review are tracked in the [review record](architecture-reviews.md). The earlier document's two reviewer rounds do not cover this extension. Nothing here is deployed, load-tested against the plant, or authorization for production changes. Fleet size is known; message rate, payload size, telemetry volume, site topology, and latency objectives are not.
 
 ## 1. Real-time delivery and AI have different workloads
 
@@ -32,12 +32,12 @@ This is the preferred implementation if no incumbent service already satisfies t
 | Optional collection/routing | OpenTelemetry Collector | Add only for missing OTLP/routing needs. Separate pipelines when signals need different scaling. Bounded queues, memory limits, persistent buffering where justified [2] |
 | Detection and paging | Existing alerting; Prometheus rules/Alertmanager if that is the incumbent | Deterministic thresholds, session-aware baselines, grouping/inhibition. AI receives an asynchronous incident copy; paging does not wait |
 | Event intake, operator API, progress | Go HTTP service; existing ingress and OIDC SSO; REST/JSON and Server-Sent Events (SSE) | Persist receipt before acknowledging accepted work. Rate limits, idempotency, authorization, durable event cursor. Existing Slack/Teams adapter can be another client |
-| Durable orchestration | Temporal service plus Go workflow workers | Production reference for incident/task/action lifecycle. Reuse incumbent workflow if it meets replay, cancellation, approval, versioning, and reconciliation contracts. Cloud versus self-hosted follows data/security policy [3] |
+| Durable orchestration | Read-only POC: PostgreSQL-backed task service. Action phase: Temporal service plus Go workflow workers, if adopted | Phase-specific authority is defined in Section 4. Reuse incumbent workflow if it meets replay, cancellation, approval, versioning, and reconciliation contracts. Cloud versus self-hosted follows data/security policy [3] |
 | Agent execution | Python, LangGraph, Pydantic, official provider SDKs; selected LangChain integrations | Three role-specific deployment pools, plus coordinator capability. Structured proposals and evidence; no production administrator credentials |
 | Plant read tools | Go authenticated services; REST/JSON with OpenAPI for the first integration | Named query/check templates with typed parameters. gRPC/Protobuf only if a measured internal streaming interface needs it; MCP can expose the same tools later, not replace authorization |
 | Plant action executor | Separate Go service using supported plant APIs or existing approved automation jobs | Action ledger, exact target binding, policy enforcement, execution fencing, outcome reconciliation. Existing Ansible Automation Platform is an option, not required |
 | Policy | Existing authorization service; OPA if a new policy engine is required | Go services enforce policy decisions. Separate reviewed policy releases; stale/revoked authority blocks dispatch |
-| Task index, topology, evidence metadata | PostgreSQL, using incumbent managed/HA service where available | Relational resource/edge/version tables, scoped evidence references, action ledger, outbox, UI projections. Not the metrics database and not a second workflow engine |
+| Task index, topology, evidence metadata | PostgreSQL, using incumbent managed/HA service where available | Owns task lifecycle in the read-only POC. After Temporal adoption, retains intake/outbox, metadata, action ledger and UI projections, not a competing task scheduler. Never the metrics database |
 | Large evidence and audit export | Existing private S3-compatible object storage | Encrypted, access-controlled bundles with checksums and retention. Durable write receipts and append-only audit controls; object links do not grant unrestricted access |
 | Runbooks and skills | Git, CI, immutable signed release artifacts/container digests | Human-owned promotion and revocation. Separate sandbox for candidate code; scripts run only through approved execution controls |
 | Model access | Existing enterprise model gateway if available; otherwise official SDK access behind one controlled egress boundary | Explicit provider/model allowlist, request budgets, data classification, usage accounting. Do not build a generic multi-provider platform before it is needed |
@@ -46,6 +46,8 @@ This is the preferred implementation if no incumbent service already satisfies t
 | Deployment and secrets | Existing VM/container platform, enterprise secrets manager, workload identity, mTLS | Dedicated service identities and network policies. Kubernetes/Helm only if already operated or justified; do not migrate the plant for this project |
 
 **Minimal first production-shaped lab:** Prometheus/Grafana, PostgreSQL, the Go API/read-tool boundary, Python role workers, approved model API, and synthetic publishers/relays/subscribers. Add Temporal and the separate executor when testing actions. Do not start with Mimir, Kafka, Loki, a vector database, service mesh, or GPUs merely because they appear in this table.
+
+Keep Go/native continuous ingestion from the first lab to respect the owner's workload constraint and avoid qualifying a Python-only toy as the ingestion architecture. Reduce POC overhead by combining compatible Go API/read-tool responsibilities into one service where practical; preserve collector resource isolation and keep the privileged executor separate when introduced. Python remains for bounded investigations and offline analysis. This choice is not a claim of measured throughput.
 
 ## 3. Collect process evidence without disturbing delivery
 
@@ -91,7 +93,17 @@ If arbitrary PromQL is later allowed, parse and validate its AST, enforce resour
 
 ## 4. Orchestration ownership and worker pools
 
-For the production reference, Temporal owns lifecycle and dispatch. LangGraph owns bounded reasoning inside an investigation task; it does not grant permissions or independently schedule production actions. The native Temporal/LangGraph integration remains Public Preview in the reviewed documentation, so this design uses an ordinary service/activity boundary [4].
+### Read-only POC: task service, no Temporal dependency
+
+The PostgreSQL-backed task service owns intake, task lifecycle, leases, deadlines, cancellation, budgets and dispatch. Persist the accepted request and dispatch intent atomically; a dispatcher claims work with a lease/generation and retries delivery using the same task ID. Duplicate delivery retrieves or resumes existing work, and stale generations cannot publish accepted results or continue tool calls. LangGraph persists reasoning checkpoints within that task; a checkpoint never overrides task expiry or cancellation. Suitable incumbent task infrastructure may implement the same contract.
+
+UI progress derives from durable task transitions. Read-only POC workers have no production action path. This phase does not require a Temporal workflow ID, history or task queue.
+
+### Action-phase reference: Temporal, if adopted
+
+The following recovery table and Temporal activity/queue details apply only after adopting Temporal for the action phase. Temporal owns incident/task/action lifecycle and dispatch after intake handoff; PostgreSQL retains intake/outbox, evidence metadata and UI projections rather than independently scheduling the same work. An incumbent workflow engine may replace Temporal if it meets the same contracts. Drain or explicitly cancel/reconcile POC tasks before handing their scope to the new dispatcher; no task has two lifecycle owners.
+
+LangGraph owns bounded reasoning and checkpoints inside an investigation task; it does not grant permissions or independently schedule production actions. The native Temporal/LangGraph integration remains Public Preview in the reviewed documentation, so this design uses an ordinary service/activity boundary [4].
 
 | State | Authority | Recovery rule |
 | --- | --- | --- |
@@ -107,6 +119,8 @@ A Temporal activity invokes a bounded LangGraph task using the same task ID, car
 Use named queues by role and trust boundary: coordinator, operations-read, integration-read, engineering-analysis, engineering-sandbox, action-execution, and delivery-verification. These are logical capabilities; combine compatible read-only deployment processes initially, but never combine executor credentials or sandbox authority with investigators. Each always-on shared production queue needs redundant eligible workers across hosts/failure domains; pinned older worker versions need coverage too [3].
 
 Queue names alone do not enforce roles. Only permitted worker identities may access each service/queue boundary; use separate namespaces or infrastructure boundaries where platform ACLs cannot isolate the required trust domains. Privileged commands still require executor authorization even if someone can submit a workflow task.
+
+### Limits and cancellation apply in both phases
 
 Delegate only useful tasks. A simple process-down incident may use one approved diagnostic path; an ambiguous multi-feed incident can fan out to the three teams. The coordinator validates dependencies and scope, waits within deadlines, preserves disagreements, and requests a discriminating test rather than polling agents indefinitely.
 
@@ -136,6 +150,8 @@ Start with one approved provider and one qualified model if possible. Role separ
 ### Bounded inference and context
 
 Maintain a release manifest containing provider, endpoint/region, exact model/deployment version, effort/decoding configuration, prompt version, tool schemas, skill digests and eval dataset version. Resolve aliases before release. Provider deprecation or a changed model forces requalification, not silent substitution.
+
+The candidate IDs were sourced from official documentation when drafted; that lookup is not plant qualification. Before an evaluation run, recheck the exact account/region model availability, runtime/tool-parser compatibility and data-handling eligibility, and record them with the run. Architectural review of these choices and empirical qualification are separate gates; neither is implied by a valid catalog entry.
 
 Use strict structured tool inputs/results where supported, plus server-side schema and domain validation. Handle refusal, truncation, invalid arguments and unavailable evidence explicitly. Schema-correct JSON can still contain an incorrect target, fabricated evidence reference or false causal claim. Resolve every cited evidence ID and validate its scope and timestamp [8].
 
@@ -230,6 +246,8 @@ Safety gates are pass/fail for the finite release suite; useful-result targets a
 Promotion order: synthetic lab; historical read-only replay; production shadow; one approval-gated low-risk runbook; bounded preauthorized routines. Change model/prompt/tool/skill/policy versions through the same relevant regression gates, with a rollback and revocation path.
 
 ## 9. Engineering work packages and unresolved inputs
+
+**Deferred follow-up:** the AI implementation author prepares a self-contained Stage 1 lab specification after the owner settles the reference architecture, with operations/integration/engineering review. It must define synthetic components, adapter interfaces, fault scenarios, a hidden fault oracle and acceptance tests. This correction does not supply that specification or authorize implementation; synthetic assumptions must remain distinct from confirmed production contracts.
 
 1. **Operations:** select one recent incident and one healthy peak session; define supported evidence, incorrect diagnoses, meaningful progress and escalation behavior.
 2. **Integration:** provide one supported deployment/rollback interface with idempotency, preconditions, safe stop, approval and verification semantics.

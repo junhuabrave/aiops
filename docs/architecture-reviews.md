@@ -1,6 +1,6 @@
 # Architecture review record
 
-This records two sequential AI-assisted document reviews requested by the plant owner. They are design critiques, not independent human approval, penetration tests, implementation verification, or evidence of production readiness. A human architect's peer review remains outstanding.
+This records the initial two sequential AI-assisted document reviews and the separate stack-extension review in PR #1. They are design critiques, not independent human approval, penetration tests, implementation verification, or evidence of production readiness. A human architect's peer review remains outstanding.
 
 ## Round 1: architecture and safety consistency
 
@@ -31,6 +31,21 @@ Scope: first-round dispositions, client/coordinator/worker boundaries, authoriza
 
 These final corrections were checked by the author against both findings; they were not submitted for a third independent review. The focused client/pool diagram was added after the second reviewer read the proposal and was visually checked by the author. No production integration or implementation was verified by either review.
 
+## Stack extension: Claude review and agreed dispositions
+
+**Date:** 14 November 2026. **Reviewer:** Claude Opus 5.5 (`claude-opus-5-5`). **Input:** [stack reference commit ca47aaa](https://github.com/junhuabrave/aiops/commit/ca47aaa99b3f2b8eba307592e33dbf1a2e4dcd59). Scope includes both architecture documents, README, this record and both diagrams. The [signed review](../review/2026-11-14-claude-opus-5.5-design-review.md) was merged by the owner in [PR #1](https://github.com/junhuabrave/aiops/pull/1).
+
+The [author response](https://github.com/junhuabrave/aiops/pull/1#issuecomment-6881469403) and [reviewer reply](https://github.com/junhuabrave/aiops/pull/1#issuecomment-6881504333) agree on all four dispositions. Agreement does not confirm the corrective revision: Claude requested its exact commit for re-review. This section records that state, not a completed second review of the extension.
+
+| Finding | Agreed disposition and corrective status |
+| --- | --- |
+| POC/production orchestration ownership | Accepted. Both docs now specify PostgreSQL task-service lifecycle for the read-only POC, and Temporal lifecycle after action-phase adoption; LangGraph owns bounded reasoning/checkpoints. Corrective revision awaits reviewer confirmation. |
+| Stack/model choices need their own review | Accepted. This separate review is recorded; sourced IDs are distinguished from account/region eligibility and empirical qualification. Corrective-revision review remains open; deployment qualification is future work. |
+| First buildable lab specification | Deferred until the reference architecture is settled. AI implementation author owns the specification follow-up with plant-engineer review; Section 9 of the stack design records scope. No lab implementation is authorized here. |
+| Python-only POC alternative | Rejected for continuous ingestion; reviewer accepted the owner's constraint. Go/native ingestion remains, compatible Go API/read tools may share a service, and the privileged executor stays separate. Rationale is now explicit in the stack design. |
+
+**Outstanding:** reviewer confirmation against the corrective PR head, human review of the final original round-2 fixes/client diagram and stack extension, and owner approval before merge. No production behavior, performance or model suitability was tested by this review.
+
 ## Human architect review
 
-Please review the [proposal](ai-layer-architecture.md), particularly Sections 2, 4, 6, 8, and 10. Resolve the action/workflow integration boundary, role authority, skill promotion, temporary telemetry restoration, production failure semantics, and minimum platform footprint against the actual plant. Product choices and production rollout require owner approval; this document provides neither.
+Please review the [proposal](ai-layer-architecture.md), particularly Sections 2, 4, 6, 8, and 10, and the [stack extension](production-stack-design.md), including the final original round-2 fixes and client/pool diagram. Resolve the action/workflow integration boundary, role authority, skill promotion, temporary telemetry restoration, production failure semantics, and minimum platform footprint against the actual plant. Product choices and production rollout require owner approval; this document provides neither.

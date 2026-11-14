@@ -2,7 +2,7 @@
 
 **Status:** initial proposal for architect peer review. **Date:** 14 November 2026. **Implementation status:** design only; no production integration, production changes, or fleet-scale validation.
 
-For component technologies, AI model candidates, streaming ingestion boundaries, and capacity qualification, see the [stack and model reference design](production-stack-design.md). That follow-on design explicitly keeps Python out of the continuous telemetry path and has not received the two reviews recorded for this initial proposal.
+For component technologies, AI model candidates, streaming ingestion boundaries, and capacity qualification, see the [stack and model reference design](production-stack-design.md). That follow-on design explicitly keeps Python out of the continuous telemetry path. Its separate review and agreed dispositions are recorded in the [review record](architecture-reviews.md); confirmation of the corrective revision remains pending. The initial proposal's two reviews do not cover the extension.
 
 ## 1. Add intelligence above existing systems
 
@@ -79,7 +79,14 @@ Authenticated cancellation or system-enforced expiry is a durable task-tree tran
 
 ### Give LangGraph and the action workflow distinct ownership
 
-LangGraph owns the investigation state and produces a result/proposal. Temporal, if adopted, owns the operational action lifecycle. Use stable incident, investigation, task, and action IDs; retries query existing work rather than creating duplicate actions. Assign one retry owner per boundary and use durable deduplication/dispatch so a crash between recording and enqueueing work cannot lose it.
+LangGraph owns reasoning and checkpoints within a bounded investigation task and produces a result/proposal. The task's lifecycle authority depends on the phase:
+
+| Phase | Lifecycle and dispatch authority | LangGraph responsibility |
+| --- | --- | --- |
+| Read-only POC | PostgreSQL-backed task service, or a suitable incumbent, owns intake, task state, leases, deadlines, cancellation, budgets and durable dispatch. Temporal is not required | Persist investigation checkpoints and return evidence/results within the task service's limits |
+| Action phase, if Temporal is adopted | Temporal owns incident/task/action lifecycle and dispatch after intake handoff; PostgreSQL retains intake/outbox, evidence and UI projections, not a competing lifecycle scheduler | Run bounded investigation tasks through a service/activity boundary; cannot override workflow cancellation or authorize actions |
+
+Keep an incumbent workflow service instead of Temporal if it satisfies the same contracts. When changing lifecycle authority, drain or explicitly cancel/reconcile old tasks before enabling the new dispatcher for their scope; never let both schedule the same task. Use stable incident, investigation, task, and action IDs; retries query existing work rather than creating duplicate actions. Assign one retry owner per boundary and use durable deduplication/dispatch so a crash between recording and enqueueing work cannot lose it.
 
 Do not place raw logs or metric histories in workflow histories. Store scoped evidence with timestamps and integrity metadata; pass references and bounded summaries. Persist deadlines, budgets, and tool/action versions alongside task state. A restart must not revive expired approval or silently upgrade a running task to a new skill.
 

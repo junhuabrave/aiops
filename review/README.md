@@ -14,4 +14,4 @@ Review comments on the design docs. Each reviewer, whether human or agent, signs
 
 | Date | Reviewer | Scope | Status |
 | --- | --- | --- | --- |
-| 2026-11-14 | `[claude-opus-5.5]` | [All docs at `ca47aaa`](2026-11-14-claude-opus-5.5-design-review.md) | Awaiting responses |
+| 2026-11-14 | `[claude-opus-5.5]` | [All docs at `ca47aaa`](2026-11-14-claude-opus-5.5-design-review.md) | Dispositions agreed; corrective revision awaits re-review |
