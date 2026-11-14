@@ -16,3 +16,4 @@ Review comments on the design docs. Each reviewer, whether human or agent, signs
 | --- | --- | --- | --- |
 | 2026-11-14 | `[claude-opus-5.5]` | [All docs at `ca47aaa`](2026-11-14-claude-opus-5.5-design-review.md) | Dispositions agreed; corrections confirmed in re-review below |
 | 2026-11-14 | `[claude-opus-5.5]` | [Re-review of PR #2 at `94107a1`](2026-11-14-claude-opus-5.5-rereview-94107a1.md) | Confirmed at reviewed commit; author addressed two non-blocking nits afterward, awaiting owner approval |
+| 2026-11-14 | `[claude-opus-5.5]` | [Lab spec, PR #3 at `350e75d`](2026-11-14-claude-opus-5.5-lab-spec-350e75d.md) | One blocker (ambiguous case), six non-blocking; awaiting author response |
