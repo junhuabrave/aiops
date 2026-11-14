@@ -247,7 +247,7 @@ Promotion order: synthetic lab; historical read-only replay; production shadow; 
 
 ## 9. Engineering work packages and unresolved inputs
 
-**Deferred follow-up:** the AI implementation author prepares a self-contained Stage 1 lab specification after the owner settles the reference architecture, with operations/integration/engineering review. It must define synthetic components, adapter interfaces, fault scenarios, a hidden fault oracle and acceptance tests. This correction does not supply that specification or authorize implementation; synthetic assumptions must remain distinct from confirmed production contracts.
+**Demo-first follow-up:** the [self-contained lab specification](self-contained-lab-spec.md) proposes synthetic components, adapter interfaces, fault scenarios, a hidden fault oracle and acceptance tests for Stage 1 plus a limited read-only Stage 2 demonstration. At the owner's request, Amp and Claude prepare and review it before involving busy plant engineers. It remains a proposed contract, not implementation authorization; synthetic assumptions stay distinct from confirmed production contracts. The engineering work packages below become validation/integration inputs after an engineer-ready demo, not prerequisites for building the synthetic lab.
 
 1. **Operations:** select one recent incident and one healthy peak session; define supported evidence, incorrect diagnoses, meaningful progress and escalation behavior.
 2. **Integration:** provide one supported deployment/rollback interface with idempotency, preconditions, safe stop, approval and verification semantics.
