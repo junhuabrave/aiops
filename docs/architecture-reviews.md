@@ -48,6 +48,31 @@ The [author response](https://github.com/junhuabrave/aiops/pull/1#issuecomment-6
 
 **Outstanding:** owner approval before merge and human review of the final original round-2 fixes/client diagram and stack extension. No production behavior, performance or model suitability was tested by this review.
 
+## Lab specification review and author dispositions
+
+**Date:** 14 November 2026. **Reviewer:** Claude Opus 5.5 (`claude-opus-5-5`). **Input:** [lab specification commit 350e75d](https://github.com/junhuabrave/aiops/commit/350e75d31cd76fef2ffc6f365a47e734b3cfa7fc). The [signed review](../review/2026-11-14-claude-opus-5.5-lab-spec-350e75d.md) and [PR #3 verdict](https://github.com/junhuabrave/aiops/pull/3#issuecomment-6882425186) identify one blocker, six non-blocking suggestions and two author questions. The reviewer found the initial specification buildable without engineer input and consistent with the merged architecture, but did not approve it for merge with B1 outstanding.
+
+**Author dispositions — Amp:**
+
+| Item | Correction in the lab specification |
+| --- | --- |
+| B1: ambiguous case leaks ingress/drop/CPU evidence or requires scenario-aware tools | Corrected and confirmed by Claude at b3fd412. Section 9 replaces selective masking with harness-side loss of all publisher/relay telemetry groups and affected-host resource telemetry in both alternatives. Tools remain scenario-unaware; normalized full tool-response comparisons must reject distinguishable pairs. No runtime equivalence has been demonstrated. |
+| 1: negative controls lack incident intake | Accepted. Section 9 gives all comparative cases a neutral authenticated operator request; alert-created incidents are tested separately from the 120-run diagnosis denominator. |
+| 2: arrival freshness hides old data; subscriber cause is ambiguous | Accepted. Section 4 adds source-to-receipt age histograms and receiver-side receive/consume/backlog evidence. Unacknowledged-window occupancy alone cannot distinguish a slow consumer from an acknowledgement-path fault. |
+| 3: benchmark uses one oversized scrape target | Accepted as a design precaution, not a measured bottleneck. Section 10 specifies disjoint collector/export shards, an initial 16-shard calibration profile and frozen resource/scrape settings for scored runs. |
+| 4: generated/reasoning budget may be too small | Accepted. Section 7 makes budgets run-manifest parameters, calibrated on development cases then frozen equally across comparison modes; limits cannot grow during a failing scored run. |
+| 5: engineer handoff waits for full qualification | Accepted. Section 12 permits handoff after the functional, safety/lifecycle and live-demo gates, explicitly leaving comparative and capacity qualification pending. |
+| 6: launch depends on Amp | Accepted. Section 3 makes `make -C lab up` portable, with Amp supervision wrapping the same launcher. |
+| Question: misleading change's real fault | Fixed to a relay bottleneck on one chain plus a benign metadata change on the unaffected chain. Chain and intensity may vary; fault family does not. |
+
+Claude's [signed re-review and evaluation proposal](../review/2026-11-14-claude-opus-5.5-lab-rereview-evals-b3fd412.md) and [confirmation comment](https://github.com/junhuabrave/aiops/pull/3#issuecomment-6882874980) confirm B1 and all six corrections at b3fd412 with no blockers. The author clarified the remaining nit: on the single-host lab, the host telemetry outage intentionally affects both chains' host-resource visibility, not their process telemetry or delivery.
+
+**Evaluation proposal dispositions — Amp:** E1 (deterministic claim faithfulness) and E2 (two-sided abstention) are included in minimum-demo acceptance. E3 (typed follow-up discrimination) is included in the comparative suite; checks requiring restored telemetry are evaluated against separate post-restoration fixtures, never granted to agents as mutations. E4 (48 additional repeatability runs) and E5 (compound/dynamic faults) are separately budgeted follow-ups outside the original denominators. Model judges cannot score safety, faithfulness or abstention; fixed regression fixtures remain separate from calibration/held-out cases. Run counts do not imply spending estimates or authorization.
+
+The owner also supplied Temporal's dynamic-agent article. Section 7 now maps its Workflow/Activity split to the later Temporal phase, states replay/retry and internal-checkpoint limits, and preserves the current read-only lab scope. Earlier adoption remains an explicit option if a general durable workflow engine becomes necessary; do not build one inside the lab task service.
+
+The signed reviewer prose is preserved with dated author responses added. **Outstanding:** review of the subsequent evaluation/Temporal notes, owner approval, and all implementation/evaluation evidence. The b3fd412 confirmation does not certify these later edits or claim that any runtime gate has passed.
+
 ## Human architect review
 
 Please review the [proposal](ai-layer-architecture.md), particularly Sections 2, 4, 6, 8, and 10, and the [stack extension](production-stack-design.md), including the final original round-2 fixes and client/pool diagram. Resolve the action/workflow integration boundary, role authority, skill promotion, temporary telemetry restoration, production failure semantics, and minimum platform footprint against the actual plant. Product choices and production rollout require owner approval; this document provides neither.
