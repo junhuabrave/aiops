@@ -4,11 +4,15 @@ CASE ?= healthy
 CHAIN ?= a
 PORT ?= 8080
 
-.PHONY: build test up down scenario verify
+.PHONY: build test up down scenario verify verify-ai replay
 build:
 	cd go && go build -o ../bin/plantlab .
 test:
 	cd go && go test -race ./...
+verify-ai:
+	cd ai && uv run --locked python -m unittest -v
+replay:
+	uv run --locked --project ai python tests/replay.py --chain $(CHAIN)
 up: build
 	@test "$(MODE)" = mock || (echo 'Live AI is not implemented in this increment; no provider calls will be made.'; exit 1)
 	./bin/plantlab up -port $(PORT)

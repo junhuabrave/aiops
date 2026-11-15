@@ -26,6 +26,8 @@ func taskResponse(w http.ResponseWriter, v any, err error, status int) {
 			http.Error(w, err.Error(), 429)
 		case errors.Is(err, errIDConflict):
 			http.Error(w, err.Error(), 409)
+		case errors.Is(err, errEvidenceUnavailable):
+			http.Error(w, err.Error(), 409)
 		default:
 			log.Printf("task API: %v", err)
 			http.Error(w, "Investigation storage unavailable; retry with the same request ID", 503)
@@ -67,6 +69,17 @@ func taskRoutes(mux *http.ServeMux, s *taskStore, run string, authorized func(*h
 		defer cancel()
 		j, err := s.get(ctx, r.PathValue("id"))
 		taskResponse(w, j, err, 200)
+	})
+	mux.HandleFunc("GET /api/investigations/{id}/evidence", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		defer cancel()
+		j, err := s.get(ctx, r.PathValue("id"))
+		var evidence evidenceExport
+		if err == nil {
+			evidence, err = exportEvidence(j)
+		}
+		w.Header().Set("Cache-Control", "no-store")
+		taskResponse(w, evidence, err, 200)
 	})
 	mux.HandleFunc("POST /api/investigations/{id}/cancel", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)

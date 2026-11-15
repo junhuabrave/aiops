@@ -14,13 +14,18 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install native lab dependencies
         run: bash lab/install.sh
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.9"
       - name: Contract, race and alert-rule checks
-        run: make -C lab build verify
+        run: make -C lab build verify verify-ai
       - name: Credential-free functional smoke (no models)
-        run: python3 lab/tests/smoke.py
+        run: uv run --locked --project lab/ai python lab/tests/smoke.py --ai-replay
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: lab-functional-result
-          path: lab/.run/current/verification.json
+          path: |
+            lab/.run/current/verification.json
+            lab/.run/current/replay-*/*.json
           if-no-files-found: ignore
