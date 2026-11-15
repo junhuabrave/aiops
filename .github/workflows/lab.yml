@@ -1,0 +1,26 @@
+name: Lab contracts and smoke
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  lab:
+    runs-on: ubuntu-latest
+    container: debian:13
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native lab dependencies
+        run: bash lab/install.sh
+      - name: Contract, race and alert-rule checks
+        run: make -C lab build verify
+      - name: Credential-free functional smoke (no models)
+        run: python3 lab/tests/smoke.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lab-functional-result
+          path: lab/.run/current/verification.json
+          if-no-files-found: ignore

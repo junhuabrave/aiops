@@ -1,0 +1,20 @@
+global:
+  scrape_interval: 1s
+  scrape_timeout: 900ms
+  evaluation_interval: 1s
+rule_files:
+  - rules.yml
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['127.0.0.1:19093']
+scrape_configs:
+  - job_name: plant-fast
+    metrics_path: /metrics/fast
+    static_configs:
+      - targets: ['127.0.0.1:18081']
+  - job_name: plant-resources
+    scrape_interval: 5s
+    metrics_path: /metrics/resources
+    static_configs:
+      - targets: ['127.0.0.1:18081']

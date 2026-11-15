@@ -1,0 +1,63 @@
+rule_files: [rules.yml]
+evaluation_interval: 1s
+tests:
+  - name: silence pages only during active sessions
+    interval: 1s
+    input_series:
+      - series: 'plant_receive_age_seconds{process="a",role="subscriber"}'
+        values: '4+0x12'
+      - series: 'plant_observation_timestamp_seconds{process="a",role="subscriber"}'
+        values: '0+1x12'
+      - series: 'plant_session_active{process="a",role="subscriber"}'
+        values: '1+0x12'
+      - series: 'plant_receive_age_seconds{process="quiet",role="subscriber"}'
+        values: '20+0x12'
+      - series: 'plant_observation_timestamp_seconds{process="quiet",role="subscriber"}'
+        values: '0+1x12'
+      - series: 'plant_session_active{process="quiet",role="subscriber"}'
+        values: '0+0x12'
+    alert_rule_test:
+      - eval_time: 4s
+        alertname: DeliverySilent
+        exp_alerts: []
+      - eval_time: 6s
+        alertname: DeliverySilent
+        exp_alerts:
+          - exp_labels: {process: a, role: subscriber, severity: warning}
+  - name: missing and stale telemetry page even without traffic
+    interval: 1s
+    input_series:
+      - series: 'plant_expected{process="missing",group="delivery"}'
+        values: '1+0x20'
+      - series: 'plant_expected{process="stale",group="delivery"}'
+        values: '1+0x20'
+      - series: 'plant_observation_timestamp_seconds{process="stale",group="delivery"}'
+        values: '0+0x20'
+      - series: 'plant_expected{process="fresh",group="delivery"}'
+        values: '1+0x20'
+      - series: 'plant_observation_timestamp_seconds{process="fresh",group="delivery"}'
+        values: '0+1x20'
+    alert_rule_test:
+      - eval_time: 10s
+        alertname: TelemetryMissing
+        exp_alerts:
+          - exp_labels: {process: missing, group: delivery, severity: warning}
+          - exp_labels: {process: stale, group: delivery, severity: warning}
+  - name: queue alert requires fresh source evidence
+    interval: 1s
+    input_series:
+      - series: 'plant_queue_age_seconds{process="relay",subscriber="one"}'
+        values: '3+0x12'
+      - series: 'plant_queue_age_seconds{process="relay",subscriber="two"}'
+        values: '0+0x12'
+      - series: 'plant_observation_timestamp_seconds{process="relay"}'
+        values: '0+1x12'
+      - series: 'plant_queue_age_seconds{process="stale-relay",subscriber="three"}'
+        values: '9+0x12'
+      - series: 'plant_observation_timestamp_seconds{process="stale-relay"}'
+        values: '-20+0x12'
+    alert_rule_test:
+      - eval_time: 6s
+        alertname: QueueDelayed
+        exp_alerts:
+          - exp_labels: {process: relay, subscriber: one, severity: warning}
