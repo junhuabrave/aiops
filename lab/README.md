@@ -17,6 +17,8 @@ make -C lab up MODE=mock
 
 Open port 8080 on your own machine and sign in with the generated value in `lab/.run/current/operator.token`. Do not commit or share that file. Sessions are read-only, expire after 12 hours and disappear when the collector restarts. There is currently **one broad demo operator**, not production SSO or the specification's restricted viewer. Grafana is available through the console's authenticated link. All other HTTP and delivery listeners bind loopback.
 
+Use HTTPS (including the orb portal) or a loopback URL such as `http://localhost:8080`, directly or through an SSH tunnel. Investigation submission uses `crypto.randomUUID()`, which requires a secure browser context; plain HTTP to a non-loopback address is unsupported.
+
 In an Amp orb, `.agents/setup` installs dependencies and builds the binary; `amp orb services ensure` runs the same Make launcher under supervision and prints the registered portal URL. Use that URL, not the host's loopback address. Stop with `amp orb service stop plant-lab` to avoid supervisor restarts. Do not run a second launcher alongside it.
 
 ## Exercise the plant
@@ -29,6 +31,8 @@ make -C lab scenario CASE=healthy
 ```
 
 Supported cases: `healthy`, `slow-consumer`, `relay-bottleneck`, `upstream-interruption`, `telemetry-failure`, `healthy-busy`, `quiet-session`, and `quiet-telemetry-failure`. Each command resets the other controls. They are terminal operations, not browser or model tools. Wait for fresh observations and queue drainage between cases. The unaffected chain provides a control. `quiet-telemetry-failure` checks that an inactive session does not hide lost telemetry.
+
+These are six specification cases plus two controls (`healthy` and `quiet-telemetry-failure`), not the specification's complete eight-case evaluation suite. The quiet telemetry failure is an extra control, not a substitute for the ambiguous family. Misleading-change and the ambiguous pair remain unimplemented. The fault harness also sets the declared session calendar; evaluation must use an independently varied calendar fixture before results can support diagnostic-quality claims.
 
 The investigation form currently runs a **deterministic baseline against the selected chain**. It does not interpret natural language or delegate to agents. Results include the exact source snapshots and distinguish a supported symptom pattern, inconclusive evidence and limited visibility. They cannot identify a synthetic cap from symptoms alone. Question text is displayed safely as text; it cannot authorize a tool or alter the diagnosis. There is no hidden scenario lookup.
 
@@ -74,7 +78,7 @@ The smoke runner owns the harness during its run: do not inject faults manually 
 ## Implemented boundaries and remaining work
 
 - Go owns frames, independent 1,000-frame drop-new queues, application-consumption ACK windows capped at 32, source timestamps, checksums and sequence accounting. Defaults are 500 publications/s per chain and two subscribers per chain. Application frames are 256 bytes plus a 4-byte TCP framing prefix; this is not an AMPS-compatible protocol.
-- Delivery telemetry refreshes every second; process and actual-host resources every five seconds. Authenticated ingestion caps requests at 256 KiB and 100 records. Unknown identities/generations/groups and invalid batches are rejected; duplicate/out-of-order samples cannot overwrite newer observations. Host metrics have a separate identity. Resource refresh does not mask stale delivery telemetry.
+- Delivery telemetry refreshes every second; process and actual-host resources every five seconds. Ingestion uses one shared collector token and caps requests at 256 KiB and 100 records. Identity is validated against the manifest, not authenticated per process: a token holder can submit another registered process's identity. Unknown identities/generations/groups and invalid batches are rejected; duplicate/out-of-order samples cannot overwrite newer observations. Host metrics have a separate identity. Resource refresh does not mask stale delivery telemetry.
 - The collector retains latest/previous snapshots, not a durable stream. Sequence gaps and unsent snapshots are counted. Prometheus scrapes separate fast/resource endpoints and retains 24 hours per run. Stale source values remain explicitly timestamped and are excluded from live rate displays and delivery rules.
 - Prometheus and Alertmanager run independently of the console's diagnostics. One webhook receiver appends and syncs a local alert journal. The other deliberately targets an unavailable AI intake, exercising receiver independence without a model service. This journal is a single-host demo page sink, not a production HA paging service.
 - Loopback binding, request limits and browser sessions are functional protections, **not enforced worker isolation**. These processes share a Unix account and have no cgroup resource limits. No AI worker may be attached with production credentials under this launch arrangement.
@@ -82,6 +86,8 @@ The smoke runner owns the harness during its run: do not inject faults manually 
 - Misleading-change/paired-ambiguity scenarios, adjustable metric-group schedules, restart/reset semantics within a run, full wire-byte accounting, retention cleanup, resource-limit enforcement and the 20k-identity benchmark are not yet implemented. The lab does not claim 20,000 real processes or production-scale throughput.
 
 Run directories contain private launch tokens, fault controls, logs, alert receipts, sequence ledgers, Prometheus/Grafana data and reports. They and the task database are ignored by Git. **Ledgers, investigation history and progress events grow without retention cleanup**; this launcher is for supervised development runs, not an unattended always-on installation. Stop it after a demonstration. Cleanup is deliberately manual in this increment so it cannot delete another run's evidence.
+
+Review follow-ups remain before evaluation or longer-lived use: the first displayed rate after a telemetry gap currently averages over that gap, and a fresh browser tab replays the full event history from cursor zero. Gap-aware rate suppression and a race-safe current-state/event-cursor bootstrap are not implemented in this increment.
 
 The engineer onboarding guide is deferred at the owner's request. Keep changes to this increment separate from existing untracked `plantops/` experiments.
 

@@ -364,8 +364,13 @@ func (s *taskStore) work(ctx context.Context, c *collector) {
 		if err == nil && owned.ID != "" && !time.Now().Before(next) {
 			var done bool
 			done, err = s.observe(call, owned.ID, owned.Generation, c.view)
-			next = time.Now().Add(5 * time.Second)
-			if done || err != nil {
+			next = time.Time{}
+			if err == nil {
+				next = time.Now().Add(5 * time.Second)
+			}
+			// A failed write/commit is not a lost lease, even if observe already
+			// calculated done. Retry next tick under the same generation fence.
+			if (done && err == nil) || errors.Is(err, errFenced) || errors.Is(err, sql.ErrNoRows) {
 				owned = investigation{}
 			}
 		}

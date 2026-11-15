@@ -285,6 +285,58 @@ func TestInvestigationAdmissionCancellationAndRecovery(t *testing.T) {
 	}
 }
 
+func TestInvestigationRetriesTransientObservationErrors(t *testing.T) {
+	for _, sample := range []int{1, 3} {
+		t.Run(fmt.Sprintf("sample-%d", sample), func(t *testing.T) {
+			s, _ := testTasks(t)
+			// Sequence advancement survives transaction rollback, so exactly one
+			// observation write fails. The third sample also tests failure after
+			// observe has calculated its completion result but before commit.
+			_, err := s.db.Exec(fmt.Sprintf(`
+CREATE SEQUENCE observation_failure;
+CREATE FUNCTION fail_observation_once() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF jsonb_array_length(NEW.samples) = %d AND jsonb_array_length(OLD.samples) < %d THEN
+  IF nextval('observation_failure') = 1 THEN
+   RAISE EXCEPTION 'injected transient observation failure' USING ERRCODE = '40001';
+  END IF;
+ END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER observation_failure BEFORE UPDATE OF samples ON investigations
+ FOR EACH ROW EXECUTE FUNCTION fail_observation_once();`, sample, sample))
+			if err != nil {
+				t.Fatal(err)
+			}
+			c, _ := fixture()
+			a := taskAPI(t, c, s)
+			id := randomID(16)
+			if w := a.submit(id, "a"); w.Code != 202 {
+				t.Fatal(w.Body.String())
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			stopped := make(chan struct{})
+			go func() { defer close(stopped); s.work(ctx, c) }()
+			t.Cleanup(func() { cancel(); <-stopped })
+			var j investigation
+			for deadline := time.Now().Add(18 * time.Second); time.Now().Before(deadline); {
+				j = apiTask(t, a, id)
+				if j.State == "completed" || j.Reclaims != 0 {
+					break
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+			if j.State != "completed" || j.Reclaims != 0 || len(j.Samples) != 3 || j.Result == nil {
+				t.Fatalf("transient error abandoned the investigation: state=%s reclaims=%d samples=%d", j.State, j.Reclaims, len(j.Samples))
+			}
+			var attempts int
+			if err = s.db.QueryRow(`SELECT last_value FROM observation_failure`).Scan(&attempts); err != nil || attempts != 2 {
+				t.Fatalf("observation fault/retry not exercised: attempts=%d error=%v", attempts, err)
+			}
+		})
+	}
+}
+
 func TestInvestigationWorkersAndEventResume(t *testing.T) {
 	s, dsn := testTasks(t)
 	c, _ := fixture()
