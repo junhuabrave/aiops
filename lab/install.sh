@@ -5,7 +5,7 @@ set -euo pipefail
 as_root=()
 if [[ "$EUID" != 0 ]]; then as_root=(sudo); fi
 missing=()
-for package in golang-go prometheus prometheus-alertmanager postgresql-17 curl ca-certificates make gcc libc6-dev python3; do
+for package in golang-go prometheus prometheus-alertmanager postgresql-17 curl ca-certificates make gcc libc6-dev python3 bubblewrap util-linux; do
   dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q 'install ok installed' || missing+=("$package")
 done
 if ((${#missing[@]})); then

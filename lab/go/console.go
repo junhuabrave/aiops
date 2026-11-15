@@ -115,6 +115,7 @@ func serveConsole(c *collector, dir string, port int) error {
 	defer tasks.db.Close()
 	for range 2 {
 		go tasks.work(ctx, c)
+		go tasks.sandboxWork(ctx, c.manifest.Run)
 	}
 	return (&http.Server{Addr: fmt.Sprintf(":%d", port), Handler: consoleHandler(c, tasks, string(token)), ReadHeaderTimeout: 3 * time.Second, ReadTimeout: 5 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 8192}).ListenAndServe()
 }
@@ -141,6 +142,7 @@ func consoleHandler(c *collector, tasks *taskStore, token string) http.Handler {
 	}
 	if tasks != nil {
 		taskRoutes(mux, tasks, c.manifest.Run, authorized)
+		sandboxRoutes(mux, tasks, c.manifest.Run)
 	}
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("ok")) })
 	mux.HandleFunc("/api/login", func(w http.ResponseWriter, r *http.Request) {
