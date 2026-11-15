@@ -12,8 +12,12 @@ jobs:
       image: debian:13
       # Disposable hosted runner only: permit the inner sandbox to create its
       # namespaces. Workers still install their own seccomp policy and drop caps.
+      # systempaths permits bwrap --disable-userns to write the new user
+      # namespace's limit; Docker's read-only /proc/sys otherwise blocks startup.
+      # This also unmasks other kernel paths in the OUTER job container. Never
+      # reuse these options on a shared runner or as a production sandbox.
       # No --privileged, extra host mounts, production secrets or production access.
-      options: --security-opt seccomp=unconfined --security-opt apparmor=unconfined
+      options: --security-opt seccomp=unconfined --security-opt apparmor=unconfined --security-opt systempaths=unconfined
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
