@@ -1,0 +1,10 @@
+services:
+  plant-lab:
+    command: make -C lab up PORT="$PORT"
+    port: 8080
+    platforms: [linux]
+    health: /healthz
+    portal:
+      url: /
+      title: Plant Control
+      description: Synthetic Go plant with rule-based diagnostics. Sign in with lab/.run/current/operator.token. Live AI is not connected.

@@ -6,5 +6,6 @@ An AI operations layer for an existing proprietary market-data publish/subscribe
 - [Component stack and AI model reference design](docs/production-stack-design.md)
 - [Self-contained lab specification](docs/self-contained-lab-spec.md) — proposed demo and evaluation contract; no engineer input required to start
 - [Architecture review record](docs/architecture-reviews.md)
+- [Run the Go plant lab](lab/README.md) — real synthetic delivery, observability and a read-only web console with durable parallel investigations; rule-based diagnostics, not live AI
 
-Status: design draft for peer review, not a production implementation or an approved production change.
+Status: architecture plus an initial functional lab increment for review. The live-AI investigation layer, enforced isolation and fleet-capacity qualification are not delivered yet. No production change is authorized.

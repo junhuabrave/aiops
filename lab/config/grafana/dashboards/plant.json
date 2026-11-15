@@ -1,0 +1,97 @@
+{
+  "uid": "plant-lab",
+  "title": "Plant delivery",
+  "schemaVersion": 40,
+  "tags": ["synthetic", "plant-lab"],
+  "timezone": "browser",
+  "refresh": "5s",
+  "time": { "from": "now-5m", "to": "now" },
+  "editable": false,
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Subscriber receipt rate · messages/s",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "uid": "plant-prometheus", "type": "prometheus" },
+      "targets": [
+        {
+          "expr": "rate(plant_ingress_total{role=\"subscriber\"}[15s]) and (time() - plant_observation_timestamp_seconds < 3)",
+          "legendFormat": "{{process}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Relay queue depth · bounded at 1,000 frames",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "uid": "plant-prometheus", "type": "prometheus" },
+      "targets": [
+        {
+          "expr": "plant_queue_depth and ignoring(subscriber) (time() - plant_observation_timestamp_seconds < 3)",
+          "legendFormat": "{{subscriber}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Oldest queued age · seconds",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "uid": "plant-prometheus", "type": "prometheus" },
+      "targets": [
+        {
+          "expr": "plant_queue_age_seconds and ignoring(subscriber) (time() - plant_observation_timestamp_seconds < 3)",
+          "legendFormat": "{{subscriber}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Telemetry source age · seconds (not scrape age)",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "uid": "plant-prometheus", "type": "prometheus" },
+      "targets": [
+        {
+          "expr": "time() - plant_observation_timestamp_seconds{group=\"delivery\"}",
+          "legendFormat": "{{process}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Subscriber receipt age p95 · seconds",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "datasource": { "uid": "plant-prometheus", "type": "prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(plant_message_age_seconds_bucket{role=\"subscriber\"}[30s]))",
+          "legendFormat": "{{process}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Process resident memory · actual bytes",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "datasource": { "uid": "plant-prometheus", "type": "prometheus" },
+      "targets": [
+        {
+          "expr": "plant_rss_bytes and (time() - plant_observation_timestamp_seconds < 15)",
+          "legendFormat": "{{process}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] }
+    }
+  ]
+}

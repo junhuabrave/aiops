@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Plant Control · Synthetic lab</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/" aria-label="Plant Control home"
+        ><span class="mark">P</span> PLANT
+        <span class="muted">/ CONTROL</span></a
+      ><span class="tag">SYNTHETIC LAB</span
+      ><span class="header-right" id="connection">Connecting</span>
+    </header>
+    <main>
+      <section id="login" hidden class="login panel">
+        <span class="eyebrow">OPERATOR ACCESS</span>
+        <h1>Enter the lab.</h1>
+        <p>
+          Eight real processes. Synthetic market data.<br />No production access
+          or model spending.
+        </p>
+        <form id="login-form">
+          <label for="token">Lab access token</label
+          ><input
+            id="token"
+            type="password"
+            autocomplete="current-password"
+            required
+          /><button type="submit">Open console →</button>
+        </form>
+        <p class="muted small">
+          Generated at launch in <code>lab/.run/current/operator.token</code>.
+          Access expires after 12 hours.
+        </p>
+        <p id="login-error" role="alert"></p>
+      </section>
+      <div id="console" hidden>
+        <section class="heading">
+          <div>
+            <div class="eyebrow">OPERATIONS / LIVE OBSERVATIONS</div>
+            <h1>
+              Know what’s happening.<br /><span class="muted"
+                >Then ask why.</span
+              >
+            </h1>
+            <p>
+              Two independent delivery chains. One evidence-first workspace.
+            </p>
+          </div>
+          <div class="heading-actions">
+            <a
+              class="button secondary"
+              href="/grafana/d/plant-lab/plant-delivery"
+              target="_blank"
+              rel="noopener"
+              >Open Grafana ↗</a
+            ><button id="logout" class="text-button">Sign out</button>
+          </div>
+        </section>
+        <div class="notice">
+          <span class="dot amber"></span><strong>Deterministic preview</strong
+          ><span
+            >Real telemetry · rule-based diagnostics · live AI and agent
+            delegation not connected</span
+          >
+        </div>
+        <section class="stats" aria-label="Plant overview">
+          <div>
+            <span>Fresh delivery telemetry</span><strong id="fresh">—</strong
+            ><small>8 expected processes</small>
+          </div>
+          <div>
+            <span>Subscriber receipts</span><strong id="throughput">—</strong
+            ><small>messages / second, observed</small>
+          </div>
+          <div>
+            <span>Active alerts</span><strong id="alerts-count">—</strong
+            ><small>Prometheus · independent of chat</small>
+          </div>
+          <div>
+            <span>Collection cadence</span><strong>1s <em>/ 5s</em></strong
+            ><small>delivery / process resources</small>
+          </div>
+        </section>
+        <div class="workspace">
+          <section class="plant panel">
+            <div class="section-title">
+              <h2>Delivery plant</h2>
+              <span class="live-label">● LIVE</span>
+            </div>
+            <p class="muted small">
+              Rates reflect the latest two source observations. Stale values are
+              never shown as live rates.
+            </p>
+            <div id="chains"></div>
+            <div class="section-title alerts-heading">
+              <h2>Detection feed</h2>
+              <span class="muted small"
+                >1s rule evaluation · 5s persistence</span
+              >
+            </div>
+            <div id="alerts" aria-live="polite"></div>
+          </section>
+          <section class="investigation panel">
+            <div class="section-title">
+              <h2>Investigation desk</h2>
+              <span class="tag">READ ONLY</span>
+            </div>
+            <div class="assistant-intro">
+              <span class="assistant-icon">⌁</span>
+              <div>
+                <strong>Start with the evidence.</strong>
+                <p>
+                  Collect three observations over ten seconds. Run both chains
+                  in parallel; progress and evidence survive this tab closing.
+                  Questions are recorded, not interpreted by a model yet.
+                </p>
+              </div>
+            </div>
+            <form id="chat">
+              <label for="scope">Investigation scope</label
+              ><select id="scope">
+                <option value="a">Chain A · four processes</option>
+                <option value="b">Chain B · four processes</option></select
+              ><label for="question">Your question</label
+              ><textarea id="question" maxlength="500" rows="3" required>
+Why is delivery delayed for these subscribers?</textarea
+              ><button id="investigate" type="submit">
+                Start investigation <span>↗</span>
+              </button>
+            </form>
+            <p id="submit-status" class="small" aria-live="polite"></p>
+            <div id="result" aria-live="polite">
+              <div class="empty">
+                No investigation yet.<br /><span
+                  >Findings will cite the source snapshots—not a hidden fault
+                  label.</span
+                >
+              </div>
+            </div>
+          </section>
+        </div>
+        <section
+          class="panel investigation-board"
+          aria-label="Investigation board"
+        >
+          <div class="section-title">
+            <h2>Investigation board</h2>
+            <span id="task-connection" class="muted small">Connecting…</span>
+          </div>
+          <p class="small" id="task-counts">
+            Two active slots · twenty queued · deterministic diagnostics
+          </p>
+          <p id="task-error" class="error" role="status"></p>
+          <div id="tasks"><p>No investigations yet.</p></div>
+        </section>
+        <footer>
+          <span id="run">Run —</span
+          ><span>Go data path · Prometheus detection · no action executor</span>
+        </footer>
+      </div>
+    </main>
+  </body>
+</html>

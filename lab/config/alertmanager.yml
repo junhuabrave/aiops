@@ -1,0 +1,21 @@
+global:
+  resolve_timeout: 1m
+route:
+  receiver: independent-journal
+  group_by: [alertname, run_id, process, subscriber]
+  group_wait: 1s
+  group_interval: 5s
+  repeat_interval: 1h
+  routes:
+    - receiver: independent-journal
+      continue: true
+    - receiver: ai-intake-disabled
+receivers:
+  - name: independent-journal
+    webhook_configs:
+      - url: http://127.0.0.1:18082/alerts
+        send_resolved: true
+  - name: ai-intake-disabled
+    webhook_configs:
+      - url: http://127.0.0.1:18083/alerts
+        send_resolved: true

@@ -1,0 +1,24 @@
+groups:
+  - name: plant
+    interval: 1s
+    rules:
+      - alert: DeliverySilent
+        expr: (plant_receive_age_seconds{role="subscriber"} > 3) and (time() - plant_observation_timestamp_seconds < 3) and (plant_session_active == 1)
+        for: 5s
+        labels:
+          severity: warning
+      - alert: QueueDelayed
+        expr: (plant_queue_age_seconds > 2) and ignoring(subscriber) (time() - plant_observation_timestamp_seconds < 3)
+        for: 5s
+        labels:
+          severity: warning
+      - alert: TelemetryMissing
+        expr: (plant_expected{group="delivery"} unless (time() - plant_observation_timestamp_seconds{group="delivery"} <= 3)) or (plant_expected{group="resources"} unless (time() - plant_observation_timestamp_seconds{group="resources"} <= 15))
+        for: 5s
+        labels:
+          severity: warning
+      - alert: CollectorUnavailable
+        expr: up{job="plant-fast"} == 0
+        for: 5s
+        labels:
+          severity: critical
