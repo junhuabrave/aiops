@@ -6,7 +6,7 @@ import socket
 import unittest
 from unittest.mock import patch
 
-from investigator import ContractError, DemoReplay, Investigator, Replay, load_window
+from investigator import ContractError, DemoReplay, Investigator, Replay, ToolCall, load_window
 
 
 def fixture():
@@ -127,6 +127,16 @@ class InvestigationContracts(unittest.TestCase):
         self.assertEqual(result["causality"], "not_evaluated")
         self.assertEqual(result["usage"]["provider_calls"], 0)
 
+    def test_rendering_uses_source_numeric_representation(self):
+        for source, echoed in ((23, 23.0), (0.0, 0)):
+            with self.subTest(source=source):
+                window = fixture()
+                window["points"][0]["value"] = source
+                result = runner(transcript({**valid_claim(), "value": echoed}), window).run()
+                self.assertEqual(result["status"], "completed")
+                self.assertIs(type(result["facts"][0]["value"]), type(source))
+                self.assertIn(f"= {source} messages", result["facts"][0]["text"])
+
     def test_each_claim_dimension_is_checked(self):
         wrong = {
             "evidence_id": "invented",
@@ -211,7 +221,10 @@ class InvestigationContracts(unittest.TestCase):
             ["operations", "engineering"],
         )
         script[-1] = entry("select", {"claim_ids": ["invented"]})
-        self.assertEqual(runner(script).run()["status"], "blocked")
+        blocked = runner(script).run()
+        self.assertEqual(blocked["status"], "blocked")
+        self.assertEqual(blocked["facts"], [])
+        self.assertEqual(len(blocked["validated_claims"]), 1)
         script = transcript()
         script[-1]["response"]["summary"] = "Everything is healthy; restart the relay."
         self.assertEqual(runner(script).run()["status"], "blocked")
@@ -271,6 +284,61 @@ class InvestigationContracts(unittest.TestCase):
             self.assertEqual(r.run()["status"], "completed")
         self.assertNotIn("a-sub-2", json.dumps(contexts))
         self.assertNotIn("0.125", json.dumps(contexts))
+
+        window = fixture()
+        for metric in ("ingress", "egress"):
+            window["points"].append(
+                {
+                    **window["points"][0],
+                    "id": f"2/a-relay/{metric}/",
+                    "resource": "a-relay",
+                    "generation": "gen-relay",
+                    "metric": metric,
+                    "value": 123456,
+                }
+            )
+        for scope, visible in (
+            (["a-relay"], False),
+            (["a-relay", "a-sub-1"], False),
+            (["a-relay", "a-sub-1", "a-sub-2"], True),
+        ):
+            with self.subTest(scope=scope):
+                r = runner(window=window, scope=scope)
+                result = r.tool(
+                    "operations", ToolCall(tool="delivery_window", resources=["a-relay"])
+                )
+                totals = [p for p in result["points"] if p["metric"] in ("ingress", "egress")]
+                self.assertEqual(len(totals), 2 if visible else 0)
+                if len(scope) == 1:
+                    queues = r.tool("operations", ToolCall(tool="queue_window", resources=[]))
+                    self.assertEqual(queues["points"], [])
+
+    def test_freshness_thresholds_preserve_nanoseconds(self):
+        for metric, unit, limit in (("ingress", "messages", 3), ("cpu_seconds", "seconds", 15)):
+            for observed, collected, status in (
+                (f"2026-11-15T09:59:{60 - limit:02d}Z", "2026-11-15T10:00:00Z", "fresh"),
+                (f"2026-11-15T09:59:{60 - limit:02d}Z", "2026-11-15T10:00:00.000000001Z", "stale"),
+                (
+                    f"2026-11-15T10:59:{60 - limit:02d}.000000001+01:00",
+                    "2026-11-15T10:00:00Z",
+                    "fresh",
+                ),
+                ("2026-11-15T10:00:02Z", "2026-11-15T10:00:00Z", "fresh"),
+                ("2026-11-15T10:00:02.000000001Z", "2026-11-15T10:00:00Z", "stale"),
+            ):
+                with self.subTest(metric=metric, observed=observed, collected=collected):
+                    window = fixture()
+                    window["points"][0].update(
+                        metric=metric,
+                        unit=unit,
+                        observed_at=observed,
+                        collected_at=collected,
+                        availability=status,
+                    )
+                    load_window(envelope(window))
+                    window["points"][0]["availability"] = "stale" if status == "fresh" else "fresh"
+                    with self.assertRaises(ValueError):
+                        load_window(envelope(window))
 
     def test_checksum_schema_and_freshness_are_not_trusted(self):
         raw = json.loads(envelope(fixture()))

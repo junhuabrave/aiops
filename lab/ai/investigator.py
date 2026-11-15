@@ -1,8 +1,10 @@
 """Credential-free LangGraph contract harness. Not a live investigation worker."""
 
 import argparse
+import calendar
 import hashlib
 import json
+import re
 import sys
 import time
 from collections import deque
@@ -24,6 +26,20 @@ from pydantic import (
 )
 
 TIMESTAMP = TypeAdapter(AwareDatetime)
+
+
+def timestamp_ns(value: str) -> int:
+    """Parse the export's RFC3339 timestamps without rounding through float/µs."""
+    match = re.fullmatch(
+        r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.(\d{1,9}))?(?:Z|[+-]\d{2}:\d{2})", value
+    )
+    if not match:
+        raise ValueError("Expected an RFC3339 timestamp with at most nine fractional digits")
+    parsed = TIMESTAMP.validate_python(value)
+    return calendar.timegm(parsed.utctimetuple()) * 1_000_000_000 + int(
+        (match[1] or "0").ljust(9, "0")
+    )
+
 
 Role = Literal["operations", "integration", "engineering"]
 Tool = Literal[
@@ -116,15 +132,16 @@ class Window(StrictModel):
     run_id: str
     chain: Literal["a", "b"]
     question: str = Field(max_length=500)
-    start: AwareDatetime
-    end: AwareDatetime
+    start: str
+    end: str
     resources: tuple[Resource, ...] = Field(min_length=4, max_length=4)
     points: tuple[Point, ...] = Field(min_length=1, max_length=20000)
     limitations: tuple[str, ...]
 
     @model_validator(mode="after")
     def consistency(self):
-        if not 0 < (self.end - self.start).total_seconds() <= 600:
+        start, end = timestamp_ns(self.start), timestamp_ns(self.end)
+        if not 0 < end - start <= 600_000_000_000:
             raise ValueError("invalid window")
         expected = {
             f"{self.chain}-publisher": "publisher",
@@ -143,8 +160,8 @@ class Window(StrictModel):
             tool, unit, kind = METRICS[p.metric]
             if (p.generation, p.unit, p.kind) != (resources[p.resource].generation, unit, kind):
                 raise ValueError("point provenance mismatch")
-            collected = TIMESTAMP.validate_python(p.collected_at)
-            if not self.start <= collected <= self.end:
+            collected = timestamp_ns(p.collected_at)
+            if not start <= collected <= end:
                 raise ValueError("point outside window")
             if tool == "queue_window":
                 if (
@@ -161,8 +178,12 @@ class Window(StrictModel):
             else:
                 if p.value is None or p.observed_at is None or p.value < 0:
                     raise ValueError("missing observation")
-                age = (collected - TIMESTAMP.validate_python(p.observed_at)).total_seconds()
-                fresh = -2 <= age <= (15 if tool == "resource_window" else 3)
+                age = collected - timestamp_ns(p.observed_at)
+                fresh = (
+                    -2_000_000_000
+                    <= age
+                    <= (15 if tool == "resource_window" else 3) * 1_000_000_000
+                )
                 if fresh != (p.availability == "fresh"):
                     raise ValueError("freshness mismatch")
         return self
@@ -378,7 +399,7 @@ class Investigator:
         return {
             "question": self.window.question,
             "resources": [r.model_dump() for r in self.window.resources if r.id in self.scope],
-            "window": {"start": self.window.start.isoformat(), "end": self.window.end.isoformat()},
+            "window": {"start": self.window.start, "end": self.window.end},
             "limitations": list(self.window.limitations),
         }
 
@@ -407,8 +428,18 @@ class Investigator:
         elif call.tool == "topology_slice":
             result["resources"] = [r.model_dump() for r in self.window.resources if r.id in ids]
         else:
+            peers = {r.id for r in self.window.resources if r.role == "subscriber"}
+            relays = {r.id for r in self.window.resources if r.role == "relay"}
             points = [
-                p for p in self.window.points if p.resource in ids and (not p.peer or p.peer in ids)
+                p
+                for p in self.window.points
+                if p.resource in ids
+                and (not p.peer or p.peer in ids)
+                and not (
+                    p.resource in relays
+                    and p.metric in {"ingress", "egress"}
+                    and not peers <= self.scope
+                )
             ]
             if call.tool == "telemetry_health":
                 result["health"] = [
@@ -470,7 +501,7 @@ class Investigator:
                 # Assign the identity outside model output; same citation can appear
                 # in separate specialist contexts without granting additional access.
                 key = f"{role}:{claim.evidence_id}"
-                accepted[key] = claim.model_dump(mode="json")
+                accepted[key] = wanted.model_dump(mode="json")
             self.guard()
             self.claims.update(accepted)
             self.event("specialist_completed", role=role, validated_claims=len(accepted))
@@ -549,7 +580,7 @@ class Investigator:
                 else "Replay proposal failed schema validation"
             )
             self.event("blocked", reason=error)
-        visible = self.selected if status == "completed" else list(self.claims)
+        visible = self.selected if status == "completed" else []
         facts = []
         for key in visible:
             c = self.claims[key]
@@ -570,8 +601,8 @@ class Investigator:
             "evidence_sha256": self.digest,
             "run_id": self.window.run_id,
             "scope": sorted(self.scope),
-            "window_start": self.window.start.isoformat(),
-            "window_end": self.window.end.isoformat(),
+            "window_start": self.window.start,
+            "window_end": self.window.end,
             "prompt_sha256": hashlib.sha256(SYSTEM.encode()).hexdigest(),
             "runbook_sha256": hashlib.sha256(RUNBOOK.encode()).hexdigest(),
             "causality": "not_evaluated",
