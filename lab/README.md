@@ -55,11 +55,46 @@ The preview API is session-authorized, with the same broad demo-operator scope o
 | `POST /api/investigations` | `{id, chain, question}`; 32-character lowercase hex request ID; 202 after commit. Reuse the same ID/body after an uncertain response. A conflicting body gets 409; a full queue gets 429 and `Retry-After: 5`. |
 | `GET /api/investigations` | Active-first board metadata, latest 100 records. |
 | `GET /api/investigations/{id}` | Durable state and the exact observation/result bundles. |
+| `GET /api/investigations/{id}/evidence` | Frozen, versioned observation export with a SHA-256 checksum. Completed three-snapshot tasks only; 409 for unfinished tasks or older records without process generations. Same operator-session authorization as the task. |
 | `POST /api/investigations/{id}/cancel` | Idempotent cancellation; already-terminal tasks retain their outcome. |
 | `GET /api/events` | Committed progress events; resume with `Last-Event-ID` or `after`. Session validity is rechecked during streaming. Ten-second streams reconnect automatically; polling also refreshes board state. |
 | `POST /api/investigate` | Earlier instantaneous snapshot diagnostic, retained for the plant smoke evaluator; not a durable investigation. |
 
 There is one diagnostic task per investigation: no child-task delegation, regional scheduling, priority/fairness policy, automatic alert intake, backend-query reservations or model budgets yet. Those controls must be implemented before external tool/model workers are attached. For the global plant, regional telemetry and independently bounded investigation pools remain the target architecture—not one agent per process and not this single-host queue presented as fleet qualification.
+
+## Exercise the first AI contracts without a provider
+
+`lab/ai` runs an actual **LangGraph flow with scripted replay responses**, not a live LLM. It validates the proposed coordinator/specialist boundary against frozen observations exported from the Go service. It does not consume the telemetry stream, change a task's durable state, or write results back into the web console. The console remains the deterministic baseline.
+
+With Python 3.13 and uv installed (tested uv 0.12.9), run from the repository root:
+
+```sh
+make -C lab verify-ai
+# Requires the disposable lab already running on its default port:
+make -C lab replay CHAIN=a
+```
+
+The operator-side capture script signs in locally using the existing token file without printing it, creates one normal diagnostic task, and exports its completed window. It then runs full-chain and subscriber-only replays. Evidence and JSON reports are saved under `lab/.run/current/replay-<task-id>/`. The replay itself receives only the export file: no token, database connection, fault controls, baseline diagnosis or scenario assignment. The SHA-256 verifies exact payload bytes; it is **not a signature or access credential**. Keep exported files private like the original evidence.
+
+The flow admits one to three distinct roles (operations, integration, engineering), runs each specialist with a separate delivered-evidence context, permits one coordinator-selected follow-up, and selects validated observations for the report. Specialists run sequentially in this harness; these are not isolated worker pools or a parallel-performance demonstration. `--demo` deliberately scripts all three roles to exercise plumbing, not to demonstrate intelligent task selection. Custom transcripts can choose one useful specialist instead.
+
+Contracts enforced in code:
+
+- Seven fixed read-tool names with role allowlists; resource IDs must stay inside the offline scope. Shared-relay queue points require both relay and peer scope; relay-only scope intentionally sees no queues. Relay ingress/egress totals require every subscriber in the caller's scope, even when the query selects just the relay, to avoid exposing omitted peer throughput by subtraction. Other authorized relay resource readings remain shared-process evidence, not a guarantee against every traffic inference. Raw queries, URLs, shell commands, specialist delegation and operational actions have no accepted schema.
+- Immutable parsed observations with run/task identity, process generation, peer, exact source/collection timestamps, units, counter/gauge type and explicit fresh/stale/missing states. Freshness and window bounds use integer nanoseconds, matching Go without a tolerance that could admit stale evidence. Only three snapshots are present, not continuous history. Derived rates, host-wide evidence, independent session calendars and change records are unavailable; `recent_changes` returns unavailable, not an empty change history.
+- Claims must match an actual point delivered to that specialist: resource, generation, peer, metric, timestamps, point statistic, value and unit. V1 supports exact point claims only—no inferred aggregations or unit conversions. Accepted values and rendered prose use the cited point's representation, not the model's equivalent numeric spelling. Unknown citations, incorrect numbers and extra causal/action prose block the replay; blocked reports have an empty `facts` list and retain earlier validated observations only in `validated_claims` for inspection.
+- At most 12 replay calls, 30 tool calls and five minutes per run. Aggregate request/response limits are 512/64 KiB, each response at most 16 KiB and each tool result at most 128 KiB. These are **local replay limits**, not tokens, currency reservations or cross-replica quotas. Cancellation/deadline checks reject late replay results. There is no persistent checkpoint or automatic retry.
+- Reports show ordered progress events, evidence/prompt/runbook hashes, scope, validated claims and missing checks. All reports say `mode: replay`, `live_model: false`, `causality: not_evaluated`; completion proves neither diagnosis nor recovery. LangSmith tracing is explicitly disabled, including when tracing flags exist in the environment.
+
+To replay a saved export with a JSON transcript instead of the scripted demonstration:
+
+```sh
+uv run --locked --project lab/ai python lab/ai/investigator.py /path/to/evidence.json --responses /path/to/responses.json
+```
+
+The transcript is an array of `{role, stage, response}` objects. Stages are `plan`, `investigate`, `follow_up`, `select`; the strict schemas and example transcripts are in `lab/ai/investigator.py` and its contract tests. Exit code 2 means invalid input or a blocked replay. Dependencies and hashes are pinned in `lab/ai/uv.lock`; this increment tested LangGraph 1.2.22 and Pydantic 2.14.3. LangSmith is a framework dependency, not an enabled external service.
+
+**Before connecting a live model:** implement Go-enforced worker identities, generation-fenced read/model permits, durable shared budget reservations, restricted-viewer authorization, separate worker credentials/checkpoints and constrained egress. Select an available approved model and obtain an explicit spend ceiling. This harness does not implement those production-shaped boundaries; a role string or `--scope` option is not an authenticated identity. It also does not evaluate prompt-injection resistance or diagnosis quality—scripted rejection tests measure enforcement, not model behavior. Live single-agent versus multi-agent comparisons remain pending.
 
 ## Verify without model credentials
 
@@ -75,6 +110,8 @@ The smoke runner owns the harness during its run: do not inject faults manually 
 
 `verify` runs Go tests with the race detector, HTTP session/CSRF and input-boundary tests, diagnostic counterexamples, real-PostgreSQL lifecycle tests and Prometheus rule tests. Lifecycle tests create and remove their own disposable databases; they never use the running lab database. They exercise concurrent admission/claim limits across connections, request deduplication/conflicts, cancellation and late-read fencing, one-reclaim recovery, expiry, changed-run blocking, overlapping observation windows, persistence after reopening the service and SSE cursor replay. This is **not** the full specification's isolation or live-AI qualification command.
 
+`make -C lab verify-ai` runs credential-free LangGraph contract tests. For plant scenarios plus Go-export/Python-replay integration, use `uv run --locked --project lab/ai python lab/tests/smoke.py --ai-replay` (add `--existing` only against an already running disposable lab). CI runs both suites and retains synthetic export/replay reports. The native plant can still run without installing the Python AI environment.
+
 ## Implemented boundaries and remaining work
 
 - Go owns frames, independent 1,000-frame drop-new queues, application-consumption ACK windows capped at 32, source timestamps, checksums and sequence accounting. Defaults are 500 publications/s per chain and two subscribers per chain. Application frames are 256 bytes plus a 4-byte TCP framing prefix; this is not an AMPS-compatible protocol.
@@ -82,7 +119,7 @@ The smoke runner owns the harness during its run: do not inject faults manually 
 - The collector retains latest/previous snapshots, not a durable stream. Sequence gaps and unsent snapshots are counted. Prometheus scrapes separate fast/resource endpoints and retains 24 hours per run. Stale source values remain explicitly timestamped and are excluded from live rate displays and delivery rules.
 - Prometheus and Alertmanager run independently of the console's diagnostics. One webhook receiver appends and syncs a local alert journal. The other deliberately targets an unavailable AI intake, exercising receiver independence without a model service. This journal is a single-host demo page sink, not a production HA paging service.
 - Loopback binding, request limits and browser sessions are functional protections, **not enforced worker isolation**. These processes share a Unix account and have no cgroup resource limits. No AI worker may be attached with production credentials under this launch arrangement.
-- The preview uses `/api/*` endpoints with PostgreSQL task durability and SSE/resume/cancellation. Versioned scoped tool/evidence contracts, restricted-viewer authorization, model egress budgets, LangGraph specialists, quantitative-claim validation and live AI remain unfinished. Do not treat the rule baseline as passing model safety/usefulness evaluations.
+- The preview uses `/api/*` endpoints with PostgreSQL task durability and SSE/resume/cancellation. Frozen evidence exports, offline scoped-tool contracts, a bounded LangGraph replay and exact point-claim validation are implemented. Restricted-viewer API authorization, live worker orchestration/isolation, durable model egress budgets and live AI remain unfinished. Neither replay nor the rule baseline passes the model safety/usefulness evaluations by itself.
 - Misleading-change/paired-ambiguity scenarios, adjustable metric-group schedules, restart/reset semantics within a run, full wire-byte accounting, retention cleanup, resource-limit enforcement and the 20k-identity benchmark are not yet implemented. The lab does not claim 20,000 real processes or production-scale throughput.
 
 Run directories contain private launch tokens, fault controls, logs, alert receipts, sequence ledgers, Prometheus/Grafana data and reports. They and the task database are ignored by Git. **Ledgers, investigation history and progress events grow without retention cleanup**; this launcher is for supervised development runs, not an unattended always-on installation. Stop it after a demonstration. Cleanup is deliberately manual in this increment so it cannot delete another run's evidence.
@@ -106,3 +143,9 @@ The Go race suite passed, including real-PostgreSQL tests with concurrent admiss
 The eight-case live plant smoke passed again after the task service was attached (30-second healthy interval, not a repeated ten-minute qualification). Fault-to-journal timing remained 7.265–7.356s for delivery faults and 6.706s for telemetry loss. A separate live parallel probe confirmed a slow-consumption finding on A and healthy observations on B, with no cross-chain evidence. Losing telemetry between snapshots yielded `supported`, then two `visibility_limited` observations and an `inconclusive` window result. A full supervised-stack restart preserved a completed evidence bundle unchanged and blocked the unfinished old-run task.
 
 Browser checks exercised two running investigations plus a queued third, cancellation, reload/reconnection, retained completed observations, unavailable-board warnings and recovery, and a 390px Chromium layout without horizontal overflow. The inspected recording shows real pointer movement across adjacent controls, starting A and B, cancelling B and expanding A's completed evidence. These checks do not establish multi-region failover, worker isolation, live-AI quality or 20k-process capacity. All implementation changes are local until separately published for review.
+
+## Offline AI-contract checks — 15 November 2026
+
+`make -C lab verify verify-ai`, `go vet ./...` from `lab/go`, and Python syntax/unused-name checks passed. The Go tests include session-protected exports, stable payload checksums, missing-versus-zero observations, independent resource freshness and refusal of absent/changed process generations. Nine Python test methods cover exact claims (including integers above 2⁵³ and nanosecond timestamps), role/scope violations, raw queries, recursive delegation, fan-out/follow-up limits, budgets, cancellation, late replies, and disabled network tracing. These are contract tests with scripted proposals, not model evaluations.
+
+The rebuilt lab passed all eight existing functional smoke scenarios with a 30-second healthy interval. Delivery-fault threshold-to-journal times were 7.516–7.612 seconds; telemetry loss was 6.472 seconds. Both chains exported completed tasks that passed full-chain and subscriber-only replays. Each scripted demonstration used nine replay calls, three tool reads and zero provider calls. Separate live slow-consumer and telemetry-failure captures preserved the delayed/healthy peer distinction and stale relay evidence; restricted subscriber reports did not inherit the relay's out-of-scope freshness warning. The lab was restored to healthy controls afterward. No UI was changed, no live model ran, and no fleet-throughput or diagnostic-quality claim follows from these results.

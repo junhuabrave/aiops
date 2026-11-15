@@ -10,6 +10,7 @@ import json
 import pathlib
 import socket
 import subprocess
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -171,6 +172,7 @@ if __name__ == "__main__":
     parser.add_argument("--existing", action="store_true", help="Use an already supervised disposable lab")
     parser.add_argument("--healthy-seconds", type=int, default=15)
     parser.add_argument("--warmup", type=int, default=5)
+    parser.add_argument("--ai-replay", action="store_true", help="Also verify frozen exports with the credential-free LangGraph harness; use the lab/ai environment")
     args = parser.parse_args()
     process = None
     log = None
@@ -199,6 +201,9 @@ if __name__ == "__main__":
             if process.poll() is not None:
                 raise RuntimeError("Lab exited before verification")
         run(args)
+        if args.ai_replay:
+            for chain in ("a", "b"):
+                subprocess.run([sys.executable, str(ROOT / "tests/replay.py"), "--chain", chain], check=True)
     finally:
         if process:
             process.terminate()

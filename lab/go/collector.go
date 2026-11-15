@@ -149,17 +149,19 @@ func (c *collector) ingest(w http.ResponseWriter, r *http.Request) {
 }
 
 type nodeView struct {
-	ID             string     `json:"id"`
-	Role           string     `json:"role"`
-	Chain          string     `json:"chain"`
-	State          string     `json:"state"`
-	Age            float64    `json:"observation_age_seconds"`
-	ResourceAge    float64    `json:"resource_age_seconds"`
-	Rate           *float64   `json:"rate_per_second"`
-	Observed       time.Time  `json:"observed_at"`
-	SampleSequence uint64     `json:"sample_seq"`
-	Delivery       *delivery  `json:"delivery"`
-	Resources      *resources `json:"resources"`
+	ID               string     `json:"id"`
+	Role             string     `json:"role"`
+	Chain            string     `json:"chain"`
+	Generation       string     `json:"generation"`
+	ResourceObserved time.Time  `json:"resource_observed_at"`
+	State            string     `json:"state"`
+	Age              float64    `json:"observation_age_seconds"`
+	ResourceAge      float64    `json:"resource_age_seconds"`
+	Rate             *float64   `json:"rate_per_second"`
+	Observed         time.Time  `json:"observed_at"`
+	SampleSequence   uint64     `json:"sample_seq"`
+	Delivery         *delivery  `json:"delivery"`
+	Resources        *resources `json:"resources"`
 }
 type plantView struct {
 	Run      string          `json:"run_id"`
@@ -178,7 +180,7 @@ func (c *collector) view() plantView {
 		v.Sessions[chain] = active
 	}
 	for _, n := range c.manifest.Nodes {
-		x := nodeView{ID: n.ID, Role: n.Role, Chain: n.Chain, State: "missing", Age: -1, ResourceAge: -1}
+		x := nodeView{ID: n.ID, Role: n.Role, Chain: n.Chain, Generation: n.Generation, State: "missing", Age: -1, ResourceAge: -1}
 		p, ok := c.samples["process/"+n.ID+"/lab-host/delivery"]
 		if ok {
 			x.Age = time.Since(p.Current.Observed).Seconds()
@@ -211,6 +213,7 @@ func (c *collector) view() plantView {
 		}
 		if resource, ok := c.samples["process/"+n.ID+"/lab-host/resources"]; ok {
 			x.ResourceAge = time.Since(resource.Current.Observed).Seconds()
+			x.ResourceObserved = resource.Current.Observed
 			x.Resources = resource.Current.Resources
 		}
 		v.Nodes = append(v.Nodes, x)
