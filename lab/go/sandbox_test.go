@@ -215,6 +215,23 @@ func TestSandboxWorkerCannotEscapeOrForgeAuthority(t *testing.T) {
 	if err := os.WriteFile(filter, sandboxFilter(), 0600); err != nil {
 		t.Fatal(err)
 	}
+	// Only this fixed, evidence-free probe exposes startup stderr. Real worker
+	// output remains untrusted and must not become an operator log channel.
+	if err := os.WriteFile(script, []byte("print('sandbox ready')\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd, fd, err := isolatedCommand(ctx, script, filter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd.Stderr = nil
+	startup, startupErr := cmd.CombinedOutput()
+	fd.Close()
+	if startupErr != nil || string(startup) != "sandbox ready\n" {
+		t.Fatalf("trusted sandbox startup probe: %v\n%s", startupErr, startup)
+	}
 	sentinel := filepath.Join(dir, "private-operator-token")
 	if err := os.WriteFile(sentinel, []byte("test-secret-not-for-worker"), 0600); err != nil {
 		t.Fatal(err)
