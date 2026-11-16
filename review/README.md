@@ -23,3 +23,4 @@ Review comments on the design docs. Each reviewer, whether human or agent, signs
 | 2026-11-15 | `[claude-opus-5.5]` | [Re-review of PR #4 at `f0c45da`](2026-11-15-claude-opus-5.5-go-plant-lab-rereview-f0c45da.md) | B1 confirmed resolved; merged |
 | 2026-11-15 | `[claude-opus-5.5]` | [Bounded AI replay, PR #5 at `5d3d1c6`](2026-11-15-claude-opus-5.5-bounded-ai-replay-5d3d1c6.md) | Author addressed four suggestions and answered both questions; confirmed in re-review below |
 | 2026-11-15 | `[claude-opus-5.5]` | [Re-review of PR #5 at `61f0997`](2026-11-15-claude-opus-5.5-bounded-ai-replay-rereview-61f0997.md) | All four suggestions resolved; no blockers; ready for owner approval |
+| 2026-11-15 | `[claude-opus-5.5]` | [Isolated workers, PR #6 at `188e906`](2026-11-15-claude-opus-5.5-isolated-workers-188e906.md) | B1 (hosted CI sandbox failure) found at `188e906`, resolved at `3e8a07d`; no blockers; four non-blocking suggestions open |
