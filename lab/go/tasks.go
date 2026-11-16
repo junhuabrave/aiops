@@ -14,8 +14,8 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-// This is a bounded diagnostic queue, not a general workflow engine. Only its
-// service touches PostgreSQL; no model or independently credentialed worker exists.
+// This is a bounded diagnostic queue, not a general workflow engine. Only the
+// trusted Go service touches PostgreSQL; sandboxed workers use private pipes.
 type investigation struct {
 	ID         string      `json:"id"`
 	Run        string      `json:"run_id"`
@@ -79,7 +79,18 @@ CREATE INDEX IF NOT EXISTS investigation_state ON investigations(state, created_
 CREATE TABLE IF NOT EXISTS task_events (
  id bigserial PRIMARY KEY, task_id text NOT NULL REFERENCES investigations(id),
  state text NOT NULL, note text NOT NULL, at timestamptz NOT NULL DEFAULT clock_timestamp()
-);`)
+);
+CREATE TABLE IF NOT EXISTS sandbox_runs (
+ id text PRIMARY KEY, source_id text NOT NULL REFERENCES investigations(id), run_id text NOT NULL,
+ profile text NOT NULL CHECK (profile IN ('chain','subscriber-1')), scope jsonb NOT NULL,
+ state text NOT NULL CHECK (state IN ('queued','running','completed','blocked','cancelled','expired')),
+ created_at timestamptz NOT NULL DEFAULT clock_timestamp(), updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ deadline timestamptz NOT NULL DEFAULT clock_timestamp() + interval '90 seconds', lease_until timestamptz,
+ generation integer NOT NULL DEFAULT 0, calls integer NOT NULL DEFAULT 0,
+ request_bytes integer NOT NULL DEFAULT 0, reserved_bytes integer NOT NULL DEFAULT 0,
+ note text NOT NULL DEFAULT 'Waiting for an isolated replay slot', result jsonb
+);
+CREATE INDEX IF NOT EXISTS sandbox_state ON sandbox_runs(state, created_at);`)
 	if err != nil {
 		db.Close()
 		return nil, err

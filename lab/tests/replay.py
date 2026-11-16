@@ -53,6 +53,39 @@ def run(chain):
             f"PASS {name}: {len(report['facts'])} validated observations; {report['usage']['replay_calls']} replay calls; no provider calls",
             flush=True,
         )
+    # Admit both scopes before waiting: two independently isolated task slots.
+    runs = []
+    for profile in ("chain", "subscriber-1"):
+        run_id = uuid.uuid4().hex
+        request("/api/sandbox-investigations", {
+            "id": run_id, "source_id": task_id, "profile": profile,
+        })
+        runs.append((profile, run_id))
+    source_points = {p["id"]: p for p in json.loads(exported["payload"])["points"]}
+    for profile, run_id in runs:
+        def sandbox_complete():
+            task = request("/api/sandbox-investigations/" + run_id)
+            if task["state"] in ("blocked", "cancelled", "expired"):
+                raise RuntimeError("Isolated replay ended: " + task["state"])
+            return task if task["state"] == "completed" else None
+
+        task = wait_for(sandbox_complete, timeout=100)
+        result = task["result"]
+        assert result["mode"] == "isolated_scripted_replay" and not result["live_model"]
+        assert result["evidence_sha256"] == exported["sha256"]
+        assert 0 < task["calls"] <= 12 and 0 < task["reserved_bytes"] <= 512 * 1024
+        assert set(result["observations"]) == {"operations", "integration", "engineering"}
+        assert result["observations"]["integration"] == []
+        for points in result["observations"].values():
+            for point in points:
+                assert point == source_points[point["id"]] and point["availability"] == "fresh"
+                assert point["resource"] in task["scope"]
+                if profile == "subscriber-1":
+                    assert point["resource"] == chain + "-sub-1"
+        output = directory / ("sandbox-" + profile + ".json")
+        output.write_text(json.dumps(task, indent=2))
+        output.chmod(0o600)
+        print(f"PASS isolated {profile}: three sandboxed specialists; durable budget {task['reserved_bytes']} bytes reserved; no provider calls", flush=True)
     print("Replay evidence and reports:", directory, flush=True)
 
 
